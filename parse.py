@@ -27,13 +27,19 @@ def parse_builtwith_html(html):
             else:
                 continue
 
-            # Description: first <p> after h2
+            # Description
+            # --- FIX: Get the actual description, not the usage stats line ---
             desc = ""
+            # Find all <p> after <h2>
             h2 = tech_col.select_one("h2")
             if h2:
-                p = h2.find_next_sibling("p")
-                if p:
-                    desc = p.get_text(strip=True)
+                # Find all next siblings that are <p>
+                ps = h2.find_next_siblings("p")
+                # The actual description is usually the second <p> (index 1), with class 'small'
+                for p in ps:
+                    if "small" in p.get("class", []):
+                        desc = p.get_text(strip=True)
+                        break
 
             # Tags: look for <p class="small text-muted">, comma-separated
             tags = ""
