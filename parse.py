@@ -110,11 +110,32 @@ def parse_builtwith_detailed(html):
     return rows
 
 def merge_tech_rows(rows1, rows2):
-    # Merge by (Category, Technology) as key, prefer detailed view if duplicate
+    # Build a dict from free view for quick lookup
+    free_dict = {(row[0], row[1]): row for row in rows1}
     merged = {}
-    for row in rows1 + rows2:
+
+    for row in rows2:
         key = (row[0], row[1])
-        merged[key] = row
+        # Use description from free view if detailed view's description is empty
+        if key in free_dict:
+            desc = row[2] if row[2].strip() else free_dict[key][2]
+            merged[key] = [
+                row[0],  # Category
+                row[1],  # Technology
+                desc,    # Description (prefer non-empty)
+                row[3],  # Tags
+                row[4],  # First Detected
+                row[5],  # Last Detected
+                row[6],  # Emojis
+            ]
+        else:
+            merged[key] = row
+
+    # Add any free view rows not in detailed view
+    for key, row in free_dict.items():
+        if key not in merged:
+            merged[key] = row
+
     return list(merged.values())
 
 def write_csv(rows, out_path):
