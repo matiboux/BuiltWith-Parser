@@ -59,7 +59,7 @@ def parse_builtwith_html(html):
                 child_link = h5.select_one("a.text-dark")
                 if not child_link:
                     continue
-                child_name = child_link.get_text(strip=True)
+                child_name = f"{tech_name} > {child_link.get_text(strip=True)}"
                 # Description: <p class="mb-0 small"> after h5
                 child_desc = ""
                 p_stats = h5.find_next_sibling("p")
@@ -68,7 +68,6 @@ def parse_builtwith_html(html):
                     child_desc = p_desc.get_text(strip=True)
                 elif p_stats and "small" in p_stats.get("class", []):
                     child_desc = p_stats.get_text(strip=True)
-                # Tags: not usually present for child, but check
                 child_tags = ""
                 tags_p = child_col.select_one("p.small.text-muted")
                 if tags_p:
@@ -91,13 +90,21 @@ def parse_builtwith_detailed(html):
     table = soup.find("table", class_="table")
     if not table:
         return rows
+    prev_tech_name = None
     for tr in table.find_all("tr"):
         tds = tr.find_all("td")
+        # Category header row
         if len(tds) >= 2 and "font-weight-bold" in tds[1].get("class", []):
             current_category = tds[1].get_text(strip=True)
             continue
+        # Technology row
         if len(tds) >= 5 and tds[1].find("a"):
+            # Detect child by pl-3 class
+            td_class = tds[1].get("class", [])
+            is_child = any("pl-3" in c for c in td_class)
             tech_name = tds[1].find("a").get_text(strip=True)
+            if is_child and prev_tech_name:
+                tech_name = f"{prev_tech_name} > {tech_name}"
             desc = ""
             desc_div = tds[1].find("div", class_="small")
             if desc_div:
@@ -121,6 +128,9 @@ def parse_builtwith_detailed(html):
                 last_detected,
                 emojis
             ])
+            # Only update prev_tech_name if not a child
+            if not is_child:
+                prev_tech_name = tds[1].find("a").get_text(strip=True)
     return rows
 
 def merge_tech_rows(rows1, rows2):
