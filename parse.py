@@ -1,6 +1,7 @@
-import csv
-import sys
 import os
+import sys
+import csv
+
 from bs4 import BeautifulSoup
 
 CSV_HEADER = ['Category','Technology','Description','Tags','First Detected','Last Detected','Emojis']
