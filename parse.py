@@ -48,6 +48,40 @@ def parse_builtwith_html(html):
                 last_detected,
                 emojis
             ])
+            # --- Handle child/nested technologies ---
+            for child in tech_col.find_all("div", class_="row"):
+                child_col = child.select_one(".col-12, .col-12.ml-3")
+                if not child_col:
+                    continue
+                h5 = child_col.select_one("h5")
+                if not h5:
+                    continue
+                child_link = h5.select_one("a.text-dark")
+                if not child_link:
+                    continue
+                child_name = child_link.get_text(strip=True)
+                # Description: <p class="mb-0 small"> after h5
+                child_desc = ""
+                p_stats = h5.find_next_sibling("p")
+                p_desc = p_stats.find_next_sibling("p") if p_stats else None
+                if p_desc and "small" in p_desc.get("class", []):
+                    child_desc = p_desc.get_text(strip=True)
+                elif p_stats and "small" in p_stats.get("class", []):
+                    child_desc = p_stats.get_text(strip=True)
+                # Tags: not usually present for child, but check
+                child_tags = ""
+                tags_p = child_col.select_one("p.small.text-muted")
+                if tags_p:
+                    child_tags = ", ".join([a.get_text(strip=True) for a in tags_p.select("a") if a.get_text(strip=True)])
+                rows.append([
+                    category,
+                    child_name,
+                    child_desc,
+                    child_tags,
+                    "",
+                    "",
+                    ""
+                ])
     return rows
 
 def parse_builtwith_detailed(html):
