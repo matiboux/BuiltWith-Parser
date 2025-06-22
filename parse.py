@@ -57,6 +57,66 @@ def parse_builtwith_html(html):
             ])
     return rows
 
+def parse_builtwith_detailed(html):
+    soup = BeautifulSoup(html, "html.parser")
+    rows = []
+    current_category = None
+
+    # Find the main table with technologies
+    table = soup.find("table", class_="table")
+    if not table:
+        return rows
+
+    for tr in table.find_all("tr"):
+        # Category header row
+        tds = tr.find_all("td")
+        if len(tds) >= 2 and "font-weight-bold" in tds[1].get("class", []):
+            # This is a category row
+            current_category = tds[1].get_text(strip=True)
+            continue
+
+        # Technology row
+        if len(tds) >= 5 and tds[1].find("a"):
+            tech_name = tds[1].find("a").get_text(strip=True)
+            # Description: in <div class="small"> inside tds[1]
+            desc = ""
+            desc_div = tds[1].find("div", class_="small")
+            if desc_div:
+                # If there are <a> tags, join their text as tags, not description
+                if desc_div.find("a"):
+                    desc = ""
+                else:
+                    desc = desc_div.get_text(strip=True)
+            # Tags: all <a class="text-muted"> inside desc_div
+            tags = ""
+            if desc_div:
+                tag_links = desc_div.find_all("a", class_="text-muted")
+                tags = ", ".join([a.get_text(strip=True) for a in tag_links])
+            # First/Last Detected
+            first_detected = tds[2].get_text(strip=True) if len(tds) > 2 else ""
+            last_detected = tds[3].get_text(strip=True) if len(tds) > 3 else ""
+            # Emojis: in tds[4]
+            emojis = tds[4].get_text(strip=True) if len(tds) > 4 else ""
+
+            rows.append([
+                current_category or "",
+                tech_name,
+                desc,
+                tags,
+                first_detected,
+                last_detected,
+                emojis
+            ])
+    return rows
+
+def merge_tech_rows(rows1, rows2):
+    # Merge by (Category, Technology) as key, prefer detailed view if duplicate
+    merged = {}
+    for row in rows1 + rows2:
+        key = (row[0], row[1])
+        merged[key] = row
+    return list(merged.values())
+
 def write_csv(rows, out_path):
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -64,9 +124,14 @@ def write_csv(rows, out_path):
         writer.writerows(rows)
 
 if __name__ == "__main__":
-    # Example usage
+    # Example usage: parse both files and merge
     with open("builtwith.html", encoding="utf-8") as f:
-        html = f.read()
-    rows = parse_builtwith_html(html)
-    write_csv(rows, "technologies.csv")
+        html_free = f.read()
+    with open("builtwith_details.html", encoding="utf-8") as f:
+        html_detailed = f.read()
+
+    rows_free = parse_builtwith_html(html_free)
+    rows_detailed = parse_builtwith_detailed(html_detailed)
+    all_rows = merge_tech_rows(rows_free, rows_detailed)
+    write_csv(all_rows, "technologies.csv")
     print("CSV written to technologies.csv")
